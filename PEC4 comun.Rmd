@@ -1,0 +1,251 @@
+---
+title: "PEC4"
+author: "Diego Tomas"
+date: "2025-06-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##PEC 4 - SOFTWARE PARA EL ANÁLISIS DE DATOS
+
+**Diego Miguel Tomas Garcia**
+**Eliseo Pampín Bello**
+**Aula 2**
+
+##Sección 1. (1 punto) 
+
+**Contexto y objetivo del estudio. Datos. En base a los intereses profesionales o preferencias del grupo, debéis buscar un conjunto de datos relacionados con la Bioestadística y Bioinformática. Para ello, podéis utilizar algunos recursos conocidos como http://www.bioinformatics.org/sms2/index.html o https://hbiostat.org/data/ . También podéis utilizar otros recursos propios que conozcáis o que sean de vuestro interés, y siempre teniendo en cuenta que sean datos públicos que podéis utilizar. Especificad el origen del conjunto de datos y justificad la elección de los mismos así como el ámbito al que se refieren. Por ejemplo, ¿qué respuestas deseáis responder en este estudio? ¿Cuál es el objetivo? Por otra parte, cread el entorno en R para trabajar y especifi cad el tipo de archivo del conjunto de datos que habéis importado. Explicad, en su caso, si existe algún tipo de política de privacidad sobre estos datos.**
+
+
+El conjunto de datos seleccionado para esta actividad proviene del repositorio público del Dr. Frank Harrell, un referente en Bioestadística clínica. El dataset, titulado "gbsg", puede ser accedido en la siguiente dirección:
+
+https://hbiostat.org/data/repo/cgbsg/gbsg.csv
+
+Este conjunto de datos fue recopilado por el German Breast Cancer Study Group (GBSG) y contiene información clínica y de seguimiento de pacientes diagnosticadas con cáncer de mama. Se trata de un estudio de supervivencia con múltiples variables clínicas y de tratamiento, en el que se evalua el tiempo de supervivencia sin que reaparezca el cancer de mama tras un tratamiento.
+Estas variables son tanto numéricas como categóricas por lo que permiten un amplio rango de análisis. Así mismo los datos son anónimos. Forma parte de los recursos didácticos del sitio hbiostat.org y su uso está permitido para fines educativos y de investigación.
+Todo esto lo convierte en una fuente adecuada para realizar un análisis bio estadístico y aplicar técnicas de aprendizaje automático.
+
+El objetivo de este caso practico sera evaluar la influencia de las variables contenidas en el data set en la reaparición de cancer de los pacientes y poder evaluar el riesgo de un paciente en función de sus datos.
+
+
+```{r}
+
+#Cargamos el dataset desde el repositorio
+gbsg <- read.table("https://hbiostat.org/data/repo/gbsg_ba_ca.dat", header = TRUE)
+
+# Ver los primeros registros
+head(gbsg)
+str(gbsg)
+summary(gbsg)
+help(gbsg)
+```
+
+
+
+##Sección 2. (2 puntos) Prospección y preparación de los datos  
+ 
+**2.1. (1 punto) Utilizando R y basándoos en conceptos trabajados en el LAB1, mostrad y explicad qué tipo de archivo habéis importado y las variables que forman parte del conjunto de datos: **
+
+**● Descripción del conjunto de datos. **
+
+**● Tipo de datos.** 
+
+**● Tamaño del conjunto de datos. **
+
+**● Detección de valores nulos. **
+
+**● Valoración del conjunto de datos en función de los puntos anteriores (¿es necesario realizar alguna transformación de datos? ¿hay datos inconsistentes? …)**
+
+**● Debéis incluir capturas de pantalla y las instrucciones en R que habéis utilizado para resolver las cuestiones anteriores. **
+
+
+
+```{r}
+
+#Cargamos el dataset desde el repositorio
+gbsg <- read.table("https://hbiostat.org/data/repo/gbsg_ba_ca.dat", header = TRUE)
+
+#Vemos la estructura del data set
+str(gbsg)
+```
+
+NOTA: La descripción de las variables en el sitio hbiostat.org se corresponde realmente al data set GBSG2 (incluido en el paquete TH.data) que es una versión pulida del data set original. Como parte del este ejercicio implica comprobar los datos y hacer las modificaciones necesarias para facilitar su análisis hemos decidido emplear el archivo original para hacer el proceso mas completo.
+
+El dataset contiene 686 observaciones en 18 variables (en comparación a las 12 del set simplificado) que describen a continuación:
+
+Variable    Tipo	        Descripción
+id          Numérica      Numero de identificación del pacientes
+age	        Numérica    	Edad de la paciente (en años)
+meno      	texto      	  Estado menopáusico (Menopáusica / Premenopáusica)
+size	      Numérica	    Tamaño del tumor (en mm)
+grade	      Numérica	    Grado del tumor (1= bien diferenciado a 3= mal diferenciado)
+gradd1      Numérica      Variable para grado = 1
+gradd2      Numérica      Variable para grado = 2
+nodes	      Numérica	    Número de ganglios positivos
+enomdes     Numerica      Número de ganglios examinados
+pgr   	    Numérica	    Receptor de progesterona en el tumor (fmol/mg))
+est   	    Numérica	    Receptor de estrógeno en el tumor (fmol/mg))
+hormon	    texto	        Tratamiento hormonal (si se ha tratado con tamoxifen o no)
+rectime	    Numérica	    Tiempo hasta evento o censura (en días)
+event	      Numérica	    Evento observado (1 = recurrencia, 0 = censura)
+Las variables _st, _d, _t y _t0 son variables empleadas en otros software de analisis y por tanto no nos serian de utilidad.
+
+Recurrencia indica que se observo una reaparición del cancer tras el tiempo indicado, 
+
+Nota:censura se refiere a que no hay información sobre si el paciente llego a recaer, por razones como que continua en el estudia  y sigue sano pero tambien porque no se terminó el estudio, se retiró el paciente o falleció por causas no relacionadas con este. Estos datos aunque introducen incertidumbre, no deben descartarse ya que aportan información sobre la no recurrencia del tumor al menos hasta el ultimo registro (que es lo que se muestra en estos casos).
+
+
+Como hemos dicho antes, las variables _st, _d, _t y _t0 son variables empleadas en otros software de análisis y no nos seran de utilidad, por lo que las eliminamos de gbsg_mod
+
+```{r}
+#Eliminamos las 4 ultimas columnas del dataset (de la 15 a la 18)
+gbsg_mod <- gbsg_mod[, -(15:18)]
+```
+
+
+Algunas variables como "meno" y "hormon" están almacenadas como texto pero deben convertirse a factores para poder utilizadas con mas comodidad.
+
+
+```{r}
+#Creamos un nuevo dataframe para almacenar los cambios y asi tener los datos originales disponibles si los neceitaramos
+gbsg_mod <- gbsg
+
+#Convetirmos meno a factores
+gbsg_mod$meno <- as.factor(gbsg_mod$meno)
+#Por comodidad (ya que uno ademas esta en minusculas) renombramos los niveles
+gbsg_mod$meno <- factor(gbsg_mod$meno,
+                    levels = c("premenopausal", "Postmenopausal"),
+                    labels = c("Pre", "Post"))
+
+
+#Convetirmos hornon a factores
+gbsg_mod$hormon <- as.factor(gbsg_mod$hormon)
+#Igualmente renombramos los factores sobre tratamiento hormonal a Si/No
+gbsg_mod$hormon <- factor(gbsg_mod$hormon,
+                    levels = c("no tamoxifen", "had tamoxifen"),
+                    labels = c("No", "Si"))
+
+```
+
+Igualmente otras variables numericas deben ser refinadas:
+
+La variable Grade ya incluye la información de gradd1 y gradd2 que son simplemente contadores para esos niveles en concreto por lo que podemos eliminarlas tambien
+
+```{r}
+#Eliminamos las columnas gradd1 y gradd2 usando sus posiciones 6 y 7
+gbsg_mod <- gbsg_mod[, -(6:7)]
+```
+
+La variables grade aunque esta almacenada como un numero deberia ser un factor ya que se refiere a estadios o formas de clasificar un tumor por lo que la covertimos a factores, esta vez manteniendo su nomenclatura
+
+```{r}
+gbsg_mod$grade <- as.factor(gbsg_mod$grade)
+```
+
+La variable censrec esta almacenada como numeros pero estos representan 2 situaciones (1 = recurrencia, 0 = censura) por lo que la convertirmos a factores y renombramos sus niveles a recurrencia y censura.
+
+
+```{r}
+gbsg_mod$censrec <- as.factor(gbsg_mod$censrec)
+
+gbsg_mod$censrec <- factor(gbsg_mod$censrec,
+                    levels = c(0, 1),
+                    labels = c("censura", "recurrencia"))
+```
+
+
+Volvemos a ver la estructura del data frame para confirmar que las transformaciones se han hecho correctamente
+```{r}
+str(gbsg_mod)
+```
+
+No habiamos comprobado si el data set tenia datos nulos, lo hacemos ahora para asegurarnos que las trasnformaciones no han creado datos nulos por error
+
+```{r}
+sum(is.na(gbsg))
+```
+No hay datos nulos en el data set
+
+
+Queda por confirmar si alguna de las variables presenta datos anómalos o fuera de escala, podemos obtener valores numericos usando la funcion summay y una representacion visual con graficos como el box plot
+
+```{r}
+summary(gbsg_mod)
+```
+
+
+
+```{r}
+num_vars <- sapply(gbsg_mod, is.numeric)
+datos_num <- gbsg_mod[, num_vars]
+
+boxplot(datos_num, main = "Boxplot variables numéricas", las=2)
+
+```
+NOTA: COMO LA ESCALA HACE DIFICIL VER ALGUNA; LAS GRAFICO POR SEPARADO, VER QUE DEJAMOS EN EL PDF FINAL.
+
+```{r}
+num_vars <- names(gbsg_mod)[sapply(gbsg_mod, is.numeric)]
+
+for (var in num_vars) {
+  boxplot(gbsg_mod[[var]], main = paste("Boxplot de", var))
+  # Puedes añadir Sys.sleep(1) para pausar entre gráficos si quieres
+}
+```
+Varias variables presentan distribuciones asimetricas pero en estos casos es porque hay un gran número de valores cercanos a cero y no son posibles valores negativos. Igualmente hay variables con valores puntuales algo extremos como prg, er o incluso size pero nada que haga pensar que esos valores podrían ser erróneos.
+
+
+**2.2. (1 punto) Realizad un mínimo de cuatro preguntas objetivo que den una idea de la información contenida en el conjunto de datos escogido, es decir, debéis obtener información del conjunto de datos a partir de determinados criterios, según variables, o rangos de valores, etc. **
+ 
+
+NO ENTIENDO BIEN ESTE ENUNCIADO
+
+Son preguntas para hacer test de relación entre las variables? pero por la seccion en la que esta deberia ser algo mas simple
+
+
+
+
+
+ 
+##Sección 3. (2,5 puntos) Análisis exploratorio de los datos 
+  
+**3.1. (1 punto) Realizad un análisis descriptivo de los datos. En base a los conceptos trabajados en el LAB2, este estudio debe incluir un resumen paramétrico de los datos y diversas representaciones gráficas de estos datos basados en determinados criterios según los tipos de variables y objetivo del estudio.**
+
+
+Parte de estos datos ya se encuentran en el apartado 2.1 y se usaron para confirmar la estructura del data set y descartar que contuviera datos anomalos. En particular los obtenidos con la funcion summary()
+Se observaron distribuc..................
+
+
+
+
+**3.2. (1,5 puntos) Realizad los siguientes ejercicios:**
+
+**a) En base a los conceptos trabajados en el LAB3, definid una función en R que realice algún tipo de cálculo que sea de interés en el contexto del conjunto de datos.**
+
+
+
+
+
+
+
+
+
+**b) En base a los conceptos trabajados en el LAB4, realizad tres ejercicios que respondan a cuestiones de probabilidad. En este caso, si el conjunto de datos no propicia estas cuestiones, podéis generar una o varias distribuciones basándonos en unos parámetros determinados defi nidos por vosotros y afi nes al contexto del estudio.** 
+ 
+ 
+##Sección 4.(2,5 puntos) Modelos de aprendizaje automático
+**En base a los conceptos trabajados en el LAB5 y a partir del conjunto de datos de esta práctica, y de los objetivos del estudio que está realizando, evaluad qué tipo de modelos conviene realizar: modelos de aprendizaje supervisado o no supervisado. Justificad su elección en base a qué condiciones se cumplen, qué respuestas desea obtener, etc… Mostrad el detalle del estudio realizado así como las representaciones gráfi cas correspondientes (p.e. clusters,...).**
+
+
+
+
+##Sección 5.(1,5 puntos) Visualización 
+**Utilizando la herramienta Shiny y en base a los conceptos trabajados en el LAB6, realizad una propuesta de visualización de datos del conjunto de datos trabajado, en base a unos determinados criterios a vuestra elección.**
+
+
+ 
+##Sección 6.(0,5 puntos) Conclusiones 
+**En base a todo el estudio realizado en esta práctica, haga una valoración fi nal. Para ello, puede basarse en las siguientes preguntas: "¿disponemos de conclusiones finales?", "¿sería necesario hacer un análisis más avanzado?", "¿faltan datos para obtener otro tipo de información como...?", “¿se puede utilizar alguna de las conclusiones para tomar algún tipo de decisiones?”. … En otro orden de cuestiones, valorad también el trabajo en grupo y la calidad del informe de análisis de datos generado.**
