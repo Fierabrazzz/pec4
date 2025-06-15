@@ -98,12 +98,7 @@ Recurrencia indica que se observo una reaparición del cancer tras el tiempo ind
 Nota:censura se refiere a que no hay información sobre si el paciente llego a recaer, por razones como que continua en el estudia  y sigue sano pero tambien porque no se terminó el estudio, se retiró el paciente o falleció por causas no relacionadas con este. Estos datos aunque introducen incertidumbre, no deben descartarse ya que aportan información sobre la no recurrencia del tumor al menos hasta el ultimo registro (que es lo que se muestra en estos casos).
 
 
-Como hemos dicho antes, las variables _st, _d, _t y _t0 son variables empleadas en otros software de análisis y no nos seran de utilidad, por lo que las eliminamos de gbsg_mod
 
-```{r}
-#Eliminamos las 4 ultimas columnas del dataset (de la 15 a la 18)
-gbsg_mod <- gbsg_mod[, -(15:18)]
-```
 
 
 Algunas variables como "meno" y "hormon" están almacenadas como texto pero deben convertirse a factores para poder utilizadas con mas comodidad.
@@ -129,6 +124,18 @@ gbsg_mod$hormon <- factor(gbsg_mod$hormon,
                     labels = c("No", "Si"))
 
 ```
+
+
+Como hemos dicho antes, las variables _st, _d, _t y _t0 son variables empleadas en otros software de análisis y no nos seran de utilidad, por lo que las eliminamos de gbsg_mod
+
+
+```{r}
+#Eliminamos las 4 ultimas columnas del dataset (de la 15 a la 18)
+gbsg_mod <- gbsg_mod[, -(15:18)]
+```
+
+
+
 
 Igualmente otras variables numericas deben ser refinadas:
 
@@ -160,6 +167,7 @@ gbsg_mod$censrec <- factor(gbsg_mod$censrec,
 Volvemos a ver la estructura del data frame para confirmar que las transformaciones se han hecho correctamente
 ```{r}
 str(gbsg_mod)
+
 ```
 
 No habiamos comprobado si el data set tenia datos nulos, lo hacemos ahora para asegurarnos que las trasnformaciones no han creado datos nulos por error
@@ -170,7 +178,7 @@ sum(is.na(gbsg))
 No hay datos nulos en el data set
 
 
-Queda por confirmar si alguna de las variables presenta datos anómalos o fuera de escala, podemos obtener valores numericos usando la funcion summay y una representacion visual con graficos como el box plot
+Queda por confirmar si alguna de las variables presenta datos anómalos o fuera de escala, podemos obtener valores numericos usando la funcion summary y una representación visual con graficos como el box plot
 
 ```{r}
 summary(gbsg_mod)
@@ -201,13 +209,74 @@ Varias variables presentan distribuciones asimetricas pero en estos casos es por
 **2.2. (1 punto) Realizad un mínimo de cuatro preguntas objetivo que den una idea de la información contenida en el conjunto de datos escogido, es decir, debéis obtener información del conjunto de datos a partir de determinados criterios, según variables, o rangos de valores, etc. **
  
 
-NO ENTIENDO BIEN ESTE ENUNCIADO
+PREGUNTA 1: ¿Cuál es la distribución de pacientes según su estado menopáusico (meno)?
+Esta es una pregunta de ejemplo para poder ver la estructura de datos en función de una varaible categorica. Una forma sencilla de hacerlo seria hacer una tabla de proporciones y si se quiere una representacion visual, un grafico de barras.
 
-Son preguntas para hacer test de relación entre las variables? pero por la seccion en la que esta deberia ser algo mas simple
+```{r}
+# Distribución del estado menopáusico
+table(gbsg_mod$meno)
+prop.table(table(gbsg_mod$meno))  # proporciones
+
+barplot(table(gbsg_mod$meno),
+        col = c("orange", "purple"),
+        main = "Distribución del estado menopáusico",
+        ylab = "Número de pacientes",
+        ylim = c(0, 400))
+
+```
+Se puede ver que hay un mayor porcentaje de pacientes ppst menopausicas pero no hay una diferencia excesiva entre ambos grupos
 
 
+PREGUNTA 2: ¿Que variables siguen una distribución normal?
+Esto puede ser muy interesante si quieremos hacer analisis posteriores de los datos ya que puede condicionar que pruebas deberiamos realizar. Esto solo podriamos realizarlo sobre variables númericas por lo que las seleccionamos:
+
+```{r}
+# Seleccionar solo columnas numéricas
+vari_num <- gbsg_mod[sapply(gbsg_mod, is.numeric)]
+names(datos_num)
+```
+
+```{r}
+# Aplicar prueba de Shapiro-Wilk a cada variable numérica
+normalidad_gbsg <- sapply(vari_num, function(x) shapiro.test(x)$p.value)
+
+# Mostrar resultados ordenados
+sort(normalidad_gbsg)
+```
+
+En este caso tenemos p valores muy bajos para todas las variables numérica, lo que en el caso del test de shapiro indica que esa variable (todas en nuestro caso) no sigue una dsitribucion normal. Lo que puede limitar el tipo de analisis que podamos realizar en el futuro con estos dato.
 
 
+PREGUNTA 3 ¿Que proporcion de recurrencia se observa segun el grado del tumor?
+Con esta pregunta podemos practicar la seleccion de subsets de datos en funcion de los valores de otra variable y sus represnetaciones
+
+```{r}
+prop_recurrencia <- aggregate(censrec ~ grade, data = gbsg_mod, 
+                             FUN = function(x) mean(x == "recurrencia"))
+
+colnames(prop_recurrencia)[2] <- "proporcion_recurrencia"
+print(prop_recurrencia)
+```
+
+Es un datos interesante, ya que a falta de hacer pruebas concretas parece que grados altos del tumos tienen mayor propbabilidad de causar recurrencia en los paciente.
+
+
+PREGUNTA 4 ¿Como se distribuye la edad de los pacientes en funcion si se ha observado recurrencia o no de sus tumores?
+
+Podemos representar estos datos visualmente segun un histograma para cada posibilidad (recurrencia o censura)
+
+```{r}
+library(ggplot2)
+
+ggplot(gbsg_mod, aes(x = age)) +
+  geom_histogram(binwidth = 5, fill = "skyblue", color = "black") +
+  facet_wrap(~ censrec) +
+  labs(title = "Distribución de la edad según edad",
+       x = "Edad",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+Aunque no se observan grandes diferencias en las distribucion de edades de ambos grupos, si parece que hay una cierta tendencia a edades mas altas en el grupo de que sufrio recurrencia de sus tumores. Pruebas matemáticas serian recomendables para confirmar este posible efecto.
 
  
 ##Sección 3. (2,5 puntos) Análisis exploratorio de los datos 
@@ -216,25 +285,161 @@ Son preguntas para hacer test de relación entre las variables? pero por la secc
 
 
 Parte de estos datos ya se encuentran en el apartado 2.1 y se usaron para confirmar la estructura del data set y descartar que contuviera datos anomalos. En particular los obtenidos con la funcion summary()
-Se observaron distribuc..................
+Se observaron distribuciones algo asimetricas, ya que las variables del dataset solo toman valores positivos y en muchas de ellas hay una gran proporion de datos iguales a cero. Pero no se observaron distribuciones muy extremas y datos que obviamente este fuera de escala.
+
+Para ver todo esto de forma mas intuitiva podemos representar gráficamente cada tipo de varible:
+
+-Númericas mediante histogramas
+-Categóricas mediante tablas de frecuencias y diagramas de barras
 
 
+```{r}
+# Histogramas para variables numéricas
+library(ggplot2)
 
+numeric_vars <- names(gbsg_mod)[sapply(gbsg_mod, is.numeric)]
+for (var in numeric_vars) {
+  print(
+    ggplot(gbsg, aes_string(x = var)) +
+      geom_histogram(bins = 30, fill = "steelblue", color = "black") +
+      labs(title = paste("Histograma de", var), x = var, y = "Frecuencia") +
+      theme_minimal()
+  )
+}
+
+```
+En los histogramas se puede ver el caso llamativo de la variable age, que presenta 2 picos claro. Uno sobre los 50 años y otro sobre los 60. A falta de conocimiento mas profundo sobre este tipo de tumores, el primer pico sobre los 50 años deberse a la edad a la que suele producirse la menopausia como media ya que el estudio parece estudiar los cambios hormonales con el cancer de pecho. El segundo pico sobre los 60 puede deberse a otros factores como una mayor tendencia a realizar pruebas medicas en personas de edad avanzada. Pero como hemos dicho, son conjeturas que deberian ser puestas a prueba.
+
+
+De las variables categoricas podemos hacer tablas que resuman las frecuencias de cada factor y representarlas mediantes diagramas de barras para poder observar este dato mas intuitivamente: 
+
+```{r}
+# Tablas de frecuencia para factores
+categorical_vars <- names(gbsg_mod)[sapply(gbsg_mod, is.factor)]
+for (var in categorical_vars) {
+  print(table(gbsg_mod[[var]]))
+}
+
+```
+
+```{r}
+library(ggplot2)
+
+categorical_vars <- names(gbsg_mod)[sapply(gbsg_mod, is.factor)]
+
+for (var in categorical_vars) {
+  print(
+    ggplot(gbsg_mod, aes_string(x = var)) +
+      geom_bar(fill = "steelblue", color = "black") +
+      labs(title = paste("Diagrama de barras de", var), x = var, y = "Frecuencia") +
+      theme_minimal()
+  )
+}
+```
+Excepto para el grado 2 de tumores que muestra una proporción mucho mayor que el resto. Los niveles de las distintas variables categóricas no parecen mostrar diferencias llamativas en sus frecuencias.
 
 **3.2. (1,5 puntos) Realizad los siguientes ejercicios:**
 
 **a) En base a los conceptos trabajados en el LAB3, definid una función en R que realice algún tipo de cálculo que sea de interés en el contexto del conjunto de datos.**
 
 
+Una función interesante seria la que nos proporcionara el porcentaje de recurrencia del tumor el funcion de cualquier otra variable que le indiquemos.
+
+
+```{r}
+proporcion_recurrencia <- function(variable) {
+  prop_table <- prop.table(table(gbsg_mod[[variable]], gbsg$censrec), 1)
+  return(round(prop_table, 3))
+}
+
+# Uso: Proporción de recurrencia según grado tumoral
+proporcion_recurrencia("grade")
+
+```
+Esta función es practica para relacionar la recurrencia (censrec) con otras variables categoricas como estado menopausico o grado del tumor.
+Si queremos usarla en variables numericas que tomen un rango muy amplio de valores estas se puede agrupar en intervalos para que sea mas practico. A continuacion muestro una versión de la funcion que hace eso:
+
+```{r}
+proporcion_recurrencia_numerica <- function(variable, n_bins = 5) {
+  # Crear intervalos usando cut (pueden ser cuantiles también)
+  gbsg_mod$grupo <- cut(gbsg_mod[[variable]], breaks = n_bins, include.lowest = TRUE)
+  
+  # Calcular proporciones por grupo
+  prop_table <- prop.table(table(gbsg_mod$grupo, gbsg_mod$censrec), 1)
+  
+  return(round(prop_table, 3))
+}
+
+#Por defecto divide la variable en 5 intervalos pero pueden especificarse los que se quieran
+proporcion_recurrencia_numerica("age")
+proporcion_recurrencia_numerica("age",10)
+```
+
+
+**b) En base a los conceptos trabajados en el LAB4, realizad tres ejercicios que respondan a cuestiones de probabilidad. En este caso, si el conjunto de datos no propicia estas cuestiones, podéis generar una o varias distribuciones basándonos en unos parámetros determinados definidos por vosotros y afines al contexto del estudio.** 
+
+El LAB 4 se centra el probabilidad y simulacion en R por lo que elegimos 3 ejercicios de esta temática.
+
+**PREGUNTA 1**. Ejemplos sobre probabilidad condicionad
+
+¿Que probabilidad tiene una paciente de tener recurrencia, si ha tenido tiene más de 3 ganglios positivos?
+
+$P(\text{recurrencia} \mid \text{pnodes} > 3) = \frac{P(\text{recurrencia} \cap \text{pnodes} > 3)}{P(\text{pnodes} > 3)}$
+
+```{r}
+# Evento A: recurrencia
+# Evento B: pnodes > 3
+
+tabla <- table(gbsg_mod$censrec, gbsg$nodes > 3)
+prob_recurrencia_dado_pnodes_mayor3 <- prop.table(tabla, 2)["recurrencia", "TRUE"]
+print(prob_recurrencia_dado_pnodes_mayor3)
+```
+Obtenemos un 58,06 % de probabilidad de recurrencia si se han tenido afectados mas de 3 ganglios
+
+
+**PREGUNTA 2**.Simulacion sobre el tiempo hasta recurrencia.
+Para esta simulacion vamos a asumir un modelo exponencia ya que suele representar bien tiempos entre eventos y suele ser el standard para modelos basicos de supervivencia en estos casos.
+Ademas por los paramentros de la distribución solo deberemos estimar uno de ellos (la media) por lo que simplifica el ejercicio.
+
+```{r}
+# Suponemos que "time" es el tiempo hasta evento (en meses)
+tiempos_recurrencia <- gbsg_mod$rectime[gbsg_mod$censrec == "recurrencia"]
+media_recurrencia <- mean(tiempos_recurrencia)
+
+# Simular 1000 tiempos hasta recurrencia con media estimada
+set.seed(999)
+sim_tiempos <- rexp(1000, rate = 1 / media_recurrencia)
+
+hist(sim_tiempos, main = "Simulación de tiempo hasta recurrencia", xlab = "Dias hasta recurrencia")
+```
+Segun esta simulacion se la mayorias de las recurrencias serian tempranas. Cosa que no observamos tan claramente en los datos reales segun el histograma de rectime en el apartado 3.1 por lo que seria recomendable buscar una distribucion alternativa para tener simulaciones mas fiables.
+
+
+**PREGUNTA 3**.Simular tamaño de tumores bajo una distribución normal
+Suponemos que el tamaño del tumor sigue una distribución normal con media y desviación estándar estimadas a partir de los. Simularemos 1000 tumores y estimaremos la probabilidad de que midan más de 30 mm.
+
+```{r}
+mu <- mean(gbsg_mod$size, na.rm = TRUE)
+sigma <- sd(gbsg_mod$size, na.rm = TRUE)
+
+set.seed(999)
+tumores_sim <- rnorm(1000, mean = mu, sd = sigma)
+
+# Probabilidad de que supere 30 mm
+mean(tumores_sim > 30)
+```
+Segun esta simulación obtenemos una probabilidad de 47.1 % de que teniendo un tumos este mida mas de 30 mm.
+
+Confirmemos cual es la proporcion en los datos reales:
+
+```{r}
+mean(gbsg_mod$size > 30, na.rm = TRUE)
+
+```
+La proporcion real es inferior a la estimada por lo que de nuevo seria recomendable revisar el modelos que hemos asumido para hacer la simulacion.
 
 
 
-
-
-
-
-**b) En base a los conceptos trabajados en el LAB4, realizad tres ejercicios que respondan a cuestiones de probabilidad. En este caso, si el conjunto de datos no propicia estas cuestiones, podéis generar una o varias distribuciones basándonos en unos parámetros determinados defi nidos por vosotros y afi nes al contexto del estudio.** 
- 
  
 ##Sección 4.(2,5 puntos) Modelos de aprendizaje automático
 **En base a los conceptos trabajados en el LAB5 y a partir del conjunto de datos de esta práctica, y de los objetivos del estudio que está realizando, evaluad qué tipo de modelos conviene realizar: modelos de aprendizaje supervisado o no supervisado. Justificad su elección en base a qué condiciones se cumplen, qué respuestas desea obtener, etc… Mostrad el detalle del estudio realizado así como las representaciones gráfi cas correspondientes (p.e. clusters,...).**
