@@ -444,12 +444,105 @@ La proporcion real es inferior a la estimada por lo que de nuevo seria recomenda
 ##Sección 4.(2,5 puntos) Modelos de aprendizaje automático
 **En base a los conceptos trabajados en el LAB5 y a partir del conjunto de datos de esta práctica, y de los objetivos del estudio que está realizando, evaluad qué tipo de modelos conviene realizar: modelos de aprendizaje supervisado o no supervisado. Justificad su elección en base a qué condiciones se cumplen, qué respuestas desea obtener, etc… Mostrad el detalle del estudio realizado así como las representaciones gráfi cas correspondientes (p.e. clusters,...).**
 
+Recordemos que el objetivo de este caso práctico será evaluar la influencia de las variables contenidas en el data set en la reaparición de cáncer de los pacientes y poder evaluar el riesgo de un paciente en función de sus datos.
 
 
 
 ##Sección 5.(1,5 puntos) Visualización 
 **Utilizando la herramienta Shiny y en base a los conceptos trabajados en el LAB6, realizad una propuesta de visualización de datos del conjunto de datos trabajado, en base a unos determinados criterios a vuestra elección.**
 
+Primero debemos instalar el paquete Shiny usando el comando install.packages("shiny"). También debemos instalar el paquete DT que nos permite definir tablas dinámicas (install.packages("DT")). 
+
+Tras realizar estas instalaciones, escribimos el código necesario para crear la aplicación:
+```{r}
+# Llamamos a las librerías que necesitamos:
+library(shiny)
+library(ggplot2)
+library(DT)
+
+# Definimos la interfaz de la aplicación:
+ui <- fluidPage(
+  titlePanel("Explorador de datos"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("x", "Selecciona la variable X:", ""), # Selección de variables
+      selectInput("y", "Selecciona la variable Y:", ""),
+      selectInput("plot_type", "Selecciona el tipo de gráfico:", 
+                  choices= c("Dispersión" = "scatterplot",
+                             "Barras" = "barplot",
+                             "Cajas" = "boxplot",
+                             "Histograma" = "histogram")), # Selector de gráficos
+      selectInput("cols_to_show", "Selecciona columnas para mostrar en la tabla:", choices = NULL, multiple = TRUE),
+      actionButton("show_summary", "Resumen de parámetros estadísticos") # Botón para mostrar el resumen de datos estadísticos
+    ), 
+    mainPanel(
+      h4("Tabla de datos"), # Añadimos títulos para cada sección de la aplicación
+      DTOutput("table"), # Para que los datos se muestren en formato de tabla
+      h4("Resumen estadístico del conjunto de datos"),
+      verbatimTextOutput("resumen"),
+      h4("Gráfico generado"),
+      plotOutput("plot")
+      )
+    )
+  )
+
+# Definimos el servidor de la aplicación:
+server <- function(input, output, session) { # Cargamos el conjunto de datos
+  dataset <- reactive({
+    gbsg_mod
+  })
+
+# Actualiza las variables disponibles para X e Y en la construcción de gráficas y los inputs para la tabla de datos:
+  observe({
+    req(dataset())
+    updateSelectInput(session, "x", choices = colnames(dataset()))
+    updateSelectInput(session, "y", choices = colnames(dataset()))
+    updateSelectInput(session, "cols_to_show", choices = colnames(dataset()), selected = colnames(dataset()))
+    })
+  
+# Crea un dataset filtrado por columnas seleccionadas:
+  datos_filtrados <- reactive({
+    req(input$cols_to_show)
+    dataset()[, input$cols_to_show, drop = FALSE]
+  })
+  
+# Mostramos la tabla dinámica:
+  output$table <- renderDT({
+    req(input$cols_to_show)
+    datatable(dataset()[, input$cols_to_show, drop = FALSE])
+    })
+
+# Mostrar el resumen solo al pulsar botón:
+  resumen_datos <- eventReactive(input$show_summary, {
+    summary(dataset())
+    })
+  output$resumen <- renderPrint({
+      req(resumen_datos())
+      resumen_datos()
+    })
+
+# Gráficos:
+  output$plot <- renderPlot({
+    req(dataset())
+    df <- dataset()
+    tipo <- input$plot_type
+    x <- input$x
+    y <- input$y
+    if (input$plot_type == "scatterplot") {
+      ggplot(dataset(), aes_string(x = input$x, y = input$y)) + geom_point(color = "darkblue") + theme_minimal()
+    } else if (input$plot_type == "barplot") {
+      ggplot(dataset(), aes_string(x = input$x)) + geom_bar(fill = "lightblue", color = "black") + theme_minimal()
+    } else if (input$plot_type == "boxplot") {
+      ggplot(dataset(), aes_string(x = input$x, y = input$y)) + geom_boxplot(fill = "steelblue", color = "black") + theme_minimal()
+    } else if (input$plot_type == "histogram") {
+      ggplot(dataset(), aes_string(x = input$x)) + geom_histogram(fill = "lightblue", color = "black") + theme_minimal()
+      }
+    })
+  }
+
+# Ejecutar la aplicación:
+shinyApp(ui, server)
+```
 
  
 ##Sección 6.(0,5 puntos) Conclusiones 
